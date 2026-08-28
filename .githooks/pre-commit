@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Pre-commit hook for the goexchange-web repository.
+# Scans staged files for tokens that must never appear in tracked content
+# (the canonical list lives in .githooks/banned-strings.conf).
+# Runs lightweight type-check / unit tests if Node deps are installed.
+#
+# Targets:   /root/goexchange-web/  (this repo)
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+for repo in /root/goexchange-web; do
+    if [ ! -d "$repo" ]; then
+        echo "pre-commit: skip missing repo $repo"
+        continue
+    fi
+done
+
+BANNED_FILE="$REPO_ROOT/.githooks/banned-strings.conf"
+if [ ! -f "$BANNED_FILE" ]; then
+    echo "pre-commit: $BANNED_FILE missing; refusing commit"
+    exit 1
+fi
+
+# Build a single alternation regex from the banned tokens.
+PATTERN="$(tr '\n' '|' < "$BANNED_FILE" | sed 's/|$//')"
+
+# Scan tracked files for any banned token.
+if git grep -nE "$PATTERN" -- ':!banned-strings.conf' ':!pre-commit' \
+        ':!package-lock.json' ':!node_modules' ':!dist' ':!.vite' \
+        -- ':!*' > /tmp/precommit-banned.txt 2>&1; then
+    if [ -s /tmp/precommit-banned.txt ]; then
+        echo "pre-commit: banned tokens found in tracked content:"
+        cat /tmp/precommit-banned.txt
+        exit 1
+    fi
+fi
+rm -f /tmp/precommit-banned.txt
+
+# TypeScript + Vitest, if dependencies are installed locally.
+if [ -d node_modules ]; then
+    if ! (npx tsc --noEmit) > /tmp/precommit-tsc.log 2>&1; then
+        echo "pre-commit: tsc failed (see /tmp/precommit-tsc.log)"
+        cat /tmp/precommit-tsc.log
+        exit 1
+    fi
+    rm -f /tmp/precommit-tsc.log
+
+    if ! (./node_modules/.bin/vitest run) > /tmp/precommit-vitest.log 2>&1; then
+        echo "pre-commit: vitest failed (see /tmp/precommit-vitest.log)"
+        cat /tmp/precommit-vitest.log
+        exit 1
+    fi
+    rm -f /tmp/precommit-vitest.log
+fi
+
+exit 0

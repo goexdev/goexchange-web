@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+
+# Playwright / Vitest artefacts
+e2e/test-results/
+e2e/report/
+playwright-report/
+
+# TypeScript build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Env files (per BOSS rule: never commit real env)
+.env
+.env.local

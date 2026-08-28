@@ -47,10 +47,9 @@ export function NotFound() {
             <Link to="/user" className="text-brand hover:underline">
               {t('notFound.myAccount', 'My Account')}
             </Link>
-            <span>•</span>
-            <Link to="/admin" className="text-brand hover:underline">
-              {t('notFound.admin', 'Admin')}
-            </Link>
+            {/* Admin link removed — do not surface admin entry points to
+                anonymous visitors who land here from a typo'd URL (H6
+                from the 2026-08-28 audit). */}
           </div>
         </div>
       </div>

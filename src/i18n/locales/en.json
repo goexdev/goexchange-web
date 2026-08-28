@@ -228,7 +228,7 @@
   },
   "markets": {
     "title": "All Markets",
-    "pairsCount": "{{count}} pairs · Live updates every 5s",
+    "pairsCount": "{{count}} pairs · Refresh on focus",
     "searchPlaceholder": "Search pair (e.g. BTC, USDT)...",
     "noMatch": "No pairs matching \"{{query}}\"",
     "loading": "Loading markets...",

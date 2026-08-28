@@ -3,6 +3,20 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Split the vendor + chart libs out of the main bundle so the
+    // initial JS payload is smaller (L13 from the 2026-08-28 audit).
+    // `react` stays in its own chunk so it's cacheable across deploys.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['lightweight-charts'],
+          i18n: ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+        },
+      },
+    },
+  },
   server: {
     port: 3000,
     strictPort: false,

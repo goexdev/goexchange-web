@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useAuth } from '../lib/auth'
 import * as api from '../lib/api'
@@ -63,7 +64,9 @@ export function Register() {
     <div className="max-w-md mx-auto mt-12">
       <div className="card">
         <h1 className="text-2xl font-bold mb-2">{t('auth.register.title')}</h1>
-        <p className="text-sm text-gray-400 mb-6">{t('auth.register.subtitle')}</p>
+        <p className="text-sm text-gray-400 mb-6">
+            {t('auth.register.subtitle', { amount: new Intl.NumberFormat(i18n.language).format(10000) })}
+          </p>
         {err && <div className="bg-red-900 text-red-200 p-3 rounded mb-4 text-sm">{err}</div>}
         <form onSubmit={onSubmit} className="space-y-4">
           <div>

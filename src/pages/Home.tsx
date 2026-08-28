@@ -5,6 +5,7 @@ import { formatPrice } from '../lib/utils'
 import { Sparkline } from '../components/Sparkline'
 import { useAuth } from '../lib/auth'
 import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 interface MarketRow {
@@ -239,7 +240,7 @@ export function Home() {
         <div className="bg-gradient-to-r from-green-900 to-blue-900 rounded-lg p-8 text-center">
           <h2 className="text-2xl font-bold mb-2">{t('home.ready')}</h2>
           <p className="text-blue-100 mb-4">
-            {t('home.ctaDesc')}
+            {t('home.ctaDesc', { amount: new Intl.NumberFormat(i18n.language).format(10000) })}
           </p>
           <Link to="/register" className="inline-block bg-white text-blue-900 hover:bg-blue-50 px-8 py-3 rounded font-medium">
             {t('home.freeAccount')}
@@ -248,7 +249,7 @@ export function Home() {
       )}
 
       <p className="text-muted text-xs text-center">
-        {t('home.testnet')}
+        {t('home.testnet', { amount: new Intl.NumberFormat(i18n.language).format(10000) })}
       </p>
     </div>
   )

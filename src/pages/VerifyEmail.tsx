@@ -21,6 +21,24 @@ export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending')
   const [error, setError] = useState<string>('')
+  // Mounted timestamp is purely for the UI so the user sees
+  // that something is happening during the brief window
+  // before useEffect fires (and again, if anything in the
+  // chain stalls).
+  const [mountedAt] = useState(() => Date.now())
+  const [, force] = useState(0)
+  // Tick once a second so the "Started N seconds ago" label
+  // updates while we wait. Cheap because the component
+  // re-renders only this string.
+  useEffect(() => {
+    if (status !== 'pending') return
+    const t = setInterval(() => force((n) => n + 1), 1000)
+    return () => clearInterval(t)
+  }, [status])
+
+  function elapsedSec(): number {
+    return Math.max(0, Math.floor((Date.now() - mountedAt) / 1000))
+  }
 
   useEffect(() => {
     const token = searchParams.get('token')
@@ -29,6 +47,12 @@ export default function VerifyEmail() {
       setError('missing token')
       return
     }
+    // Log so testers can confirm the route actually ran. The
+    // "v=2026-08-31-1" tag bumps when the handler changes —
+    // helps when the bundle hash stays the same across small
+    // edits.
+    // eslint-disable-next-line no-console
+    console.info('[verify-email] handler v=2026-08-31-1 token-prefix=' + token.slice(0, 8))
     api.verifyEmail(token)
       .then((res) => {
         if (res.token) {
@@ -43,6 +67,8 @@ export default function VerifyEmail() {
         }
       })
       .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('[verify-email] fetch failed', err)
         setStatus('error')
         // The API error message is intentionally short and
         // public-safe (no internal SQL state, no token contents).
@@ -56,7 +82,22 @@ export default function VerifyEmail() {
         <div className="text-lg font-bold text-white mb-4">goexchange</div>
         {status === 'pending' && (
           <div className="text-[#c9ced6]">
-            {t('verifyEmail.verifying', 'Verifying your email...')}
+            <div className="flex items-center gap-3 mb-3">
+              <span
+                data-testid="verify-email-spinner"
+                className="inline-block w-5 h-5 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin"
+                aria-hidden
+              />
+              <h1 className="text-xl font-semibold text-white">
+                {t('verifyEmail.verifying', 'Verifying your email...')}
+              </h1>
+            </div>
+            <p className="text-sm text-[#9aa3af]">
+              {t('verifyEmail.elapsed', 'Started {{n}} seconds ago', { n: elapsedSec() })}
+            </p>
+            <p className="text-xs text-[#7a8492] mt-2">
+              {t('verifyEmail.fallbackHint', 'If this hangs, open the console (F12) for details.')}
+            </p>
           </div>
         )}
         {status === 'success' && (

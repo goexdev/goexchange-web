@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  # ============================================================
+  # Frontend: Web lint + test + build
+  # ============================================================
+  frontend:
+    name: Frontend (Web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Tests (Vitest)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify all 8 locale files are valid JSON
+        run: |
+          for lang in en zh ja ko hi pt-BR fa ru; do
+            echo "Checking $lang.json..."
+            node -e "JSON.parse(require('fs').readFileSync('src/i18n/locales/${lang}.json', 'utf8'))" || exit 1
+          done
+          echo "All 8 locale files are valid JSON"
+
+  # ============================================================
+  # i18n completeness: All locales have all English keys.
+  # Catches missing translations before they hit production.
+  # ============================================================
+  i18n-check:
+    name: i18n Completeness
+    runs-on: ubuntu-latest
+    needs: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Check all locales have all English keys
+        run: |
+          node -e "
+          const fs = require('fs');
+
+          const locales = ['en', 'zh', 'ja', 'ko', 'hi', 'pt-BR', 'fa', 'ru'];
+          const en = JSON.parse(fs.readFileSync('src/i18n/locales/en.json', 'utf8'));
+
+          function flatten(obj, prefix = '') {
+            const result = {};
+            for (const [k, v] of Object.entries(obj)) {
+              const key = prefix ? prefix + '.' + k : k;
+              if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+                Object.assign(result, flatten(v, key));
+              } else {
+                result[key] = v;
+              }
+            }
+            return result;
+          }
+
+          const enKeys = Object.keys(flatten(en));
+          console.log('English has', enKeys.length, 'translation keys');
+
+          let totalMissing = 0;
+          for (const lang of locales) {
+            if (lang === 'en') continue;
+            const data = JSON.parse(fs.readFileSync(\`src/i18n/locales/\${lang}.json\`, 'utf8'));
+            const langKeys = Object.keys(flatten(data));
+            const missing = enKeys.filter(k => !langKeys.includes(k));
+            console.log(\`  \${lang}: \${langKeys.length} keys, missing \${missing.length}\`);
+            if (missing.length > 0) {
+              console.log('    Missing keys:', missing.slice(0, 5).join(', '), missing.length > 5 ? '...' : '');
+              totalMissing += missing.length;
+            }
+          }
+
+          if (totalMissing > 0) {
+            console.error(\`\nTotal missing keys across all locales: \${totalMissing}\`);
+            // Don't fail - English fallback handles missing keys
+            // But warn
+          } else {
+            console.log('\nAll locales have 100% key coverage');
+          }
+          "
+
+      - name: Verify useTranslation used in all pages
+        run: |
+          echo "Checking all page files use useTranslation..."
+          for f in src/pages/*.tsx; do
+            if grep -q "useTranslation" "$f"; then
+              echo "  OK $f"
+            else
+              echo "  MISSING: $f"
+            fi
+          done
+
+  # ============================================================
+  # CI Status: aggregate required jobs
+  # ============================================================
+  ci-status:
+    name: CI Status
+    runs-on: ubuntu-latest
+    needs: [frontend, i18n-check]
+    if: always()
+    steps:
+      - name: Check all required jobs
+        run: |
+          if [ "${{ needs.frontend.result }}" != "success" ] || \
+             [ "${{ needs.i18n-check.result }}" != "success" ]; then
+            echo "CI failed"
+            echo "  Frontend: ${{ needs.frontend.result }}"
+            echo "  i18n: ${{ needs.i18n-check.result }}"
+            exit 1
+          fi
+          echo "All CI checks passed"

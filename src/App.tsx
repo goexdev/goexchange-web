@@ -7,7 +7,7 @@ import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Register } from './pages/Register'
 import { Markets } from './pages/Markets'
-	import { Status } from "./pages/Status"
+import { Status } from "./pages/Status"
 import { Trade } from './pages/Trade'
 import { AuditLog } from './pages/AuditLog'
 import { AdminChains } from './pages/AdminChains'
@@ -20,6 +20,9 @@ import { AdminFeeStats } from './pages/AdminFeeStats'
 import { Notifications } from './pages/Notifications'
 import { StatusBar } from './components/StatusBar'
 import { User } from './pages/User'
+import VerifyEmail from './pages/VerifyEmail'
+import ResetPassword from './pages/ResetPassword'
+import ForgotPassword from './pages/ForgotPassword'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
@@ -38,6 +41,14 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          {/* Email verification + password reset landing pages.
+              These are reached from the links in transactional
+              emails; nginx SPA fallback routes them here so the
+              page can call the API and store the JWT for the
+              user, instead of the user seeing raw JSON. */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/markets" element={<Markets />} />
 		<Route path="/status" element={<Status />} />
           <Route path="/trade/:base/:quote" element={<Trade />} />

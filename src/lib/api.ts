@@ -328,6 +328,20 @@ export async function login(email: string, password: string): Promise<Login2FARe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
+  // The server returns 403 with a JSON body of
+  // { requires_email_verification: true, message: "..." } when
+  // the account exists but is not yet verified. Surface that
+  // as a normal return value (not an exception) so the SPA
+  // can route to the "check your inbox" panel instead of
+  // throwing a generic login error.
+  if (res.status === 403) {
+    let body: any = {}
+    try { body = await res.json() } catch { /* not json */ }
+    if (body && body.requires_email_verification) {
+      return { requires_2fa: false, requires_email_verification: true, message: body.message } as any
+    }
+    throw new Error(body.error || 'login failed')
+  }
   if (!res.ok) {
     throw new Error((await res.json()).error || 'login failed')
   }
@@ -344,6 +358,56 @@ export async function complete2FALogin(tempToken: string, code: string): Promise
     throw new Error((await res.json()).error || '2FA verification failed')
   }
   return res.json()
+}
+
+// ---- Email verification + password reset (link in email) ----
+
+// resendVerification asks the server to issue a fresh verify-email
+// link. The server always returns 200 (anti-enumeration), so
+// callers can ignore the success/failure distinction.
+export async function resendVerification(email: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export interface VerifyEmailResponse {
+  verified: boolean
+  user_id: string
+  token: string
+  message: string
+}
+
+// verifyEmail consumes a token from a verification email link
+// and returns a fresh JWT so the caller can log the user in.
+export async function verifyEmail(token: string): Promise<VerifyEmailResponse> {
+  return request<VerifyEmailResponse>(`/auth/verify-email?token=${encodeURIComponent(token)}`)
+}
+
+// forgotPassword asks the server to send a reset email. The
+// response is intentionally opaque (no enumeration) — server
+// returns 200 even for unknown addresses.
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+}
+
+export interface ResetPasswordResponse {
+  user_id: string
+  message: string
+}
+
+// resetPassword consumes a token from a reset-password email and
+// sets a new password. After success the user must log in with
+// the new password.
+export async function resetPassword(token: string, password: string): Promise<ResetPasswordResponse> {
+  return request<ResetPasswordResponse>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, password }),
+  })
 }
 
 export async function loginLegacy(email: string, password: string): Promise<{ user: User; token: string }> {

@@ -28,6 +28,10 @@ export function Register() {
   const [agree, setAgree] = useState(false)
   const [err, setErr] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // Set true after register+login fails with the
+  // requires_email_verification branch, so the page below
+  // can swap the form for a "check your inbox" panel.
+  const [submitted, setSubmitted] = useState(false)
 
   const strength = passwordStrength(password)
   const strengthLabel = () => {
@@ -50,9 +54,20 @@ export function Register() {
     }
     setSubmitting(true)
     try {
+      // The new flow (migration 0028) refuses to issue a JWT
+      // until the user has clicked the link in the verification
+      // email. So we register, then immediately call login
+      // ourselves — that will return { requires_email_verification: true }
+      // and the page below surfaces a "check your inbox" hint.
       await api.register(email, password)
-      await login(email, password)
-      navigate('/')
+      try {
+        await login(email, password)
+        navigate('/')
+      } catch (loginErr: any) {
+        // Expected path: the user is not verified yet. Show the
+        // "check your email" hint instead of a generic error.
+        setSubmitted(true)
+      }
     } catch (e: any) {
       setErr(e.message)
     } finally {
@@ -128,10 +143,32 @@ export function Register() {
             {submitting ? t('common.loading') : t('auth.register.create')}
           </button>
         </form>
-        <p className="text-sm text-gray-400 mt-4">
-          {t('auth.register.haveAccount')}{' '}
-          <Link to="/login" className="text-blue-400 hover:underline">{t('auth.register.signIn')}</Link>
-        </p>
+        {submitted && (
+          <div className="mt-6 p-4 bg-gray-800 border border-gray-700 rounded">
+            <h2 className="text-lg font-semibold text-white mb-2">
+              {t('auth.register.checkInboxTitle', 'Check your inbox')}
+            </h2>
+            <p className="text-sm text-gray-300">
+              {t('auth.register.checkInboxBody', 'We sent a verification link to your email. Click it within 24 hours to activate your account, then sign in.')}
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              {t('auth.register.checkInboxSpam', 'Did not get it? Check spam, or wait a minute and try again from the login page.')}
+            </p>
+          </div>
+        )}
+        {!submitted && (
+          <p className="text-sm text-gray-400 mt-4">
+            {t('auth.register.haveAccount')}{' '}
+            <Link to="/login" className="text-blue-400 hover:underline">{t('auth.register.signIn')}</Link>
+          </p>
+        )}
+        {submitted && (
+          <p className="text-sm text-gray-400 mt-4">
+            <Link to="/login" className="text-blue-400 hover:underline">
+              {t('auth.register.goSignIn', 'Go to sign in')}
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )

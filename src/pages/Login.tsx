@@ -16,6 +16,12 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [twoFactorCode, setTwoFactorCode] = useState('')
   const [requires2FA, setRequires2FA] = useState(false)
+  // True when the server returned 403 with
+  // requires_email_verification; we surface a "check your
+  // inbox" banner and offer a resend link.
+  const [requiresEmailVerify, setRequiresEmailVerify] = useState(false)
+  const [resendBusy, setResendBusy] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
   const [err, setErr] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -29,6 +35,11 @@ export function Login() {
         // Show 2FA input
         setRequires2FA(true)
         toast.showToast(t('auth.login.twoFactorPrompt', 'Enter your 2FA code'), 'info')
+      } else if ((result as any).requires_email_verification) {
+        // Account exists but is not yet verified — surface
+        // the inline banner so the user knows to check
+        // their inbox. We do NOT proceed with login.
+        setRequiresEmailVerify(true)
       } else {
         // Login complete
         toast.showToast(t('auth.login.welcomeBack', 'Welcome back!'), 'success')
@@ -42,12 +53,54 @@ export function Login() {
     }
   }
 
+  // resendVerification asks the server to issue a fresh
+  // verification email. The server always returns 200, so
+  // this is safe to call even when the email is wrong (the
+  // server-side anti-enumeration stance applies).
+  async function resendVerification() {
+    setResendBusy(true)
+    try {
+      await api.resendVerification(email.trim().toLowerCase())
+      setResendSent(true)
+    } catch {
+      // ignore — server is intentionally opaque
+    } finally {
+      setResendBusy(false)
+    }
+  }
+
   return (
     <div className="max-w-md mx-auto mt-12">
       <div className="card">
         <h1 className="text-2xl font-bold mb-2">{t('auth.login.title')}</h1>
         <p className="text-sm text-gray-400 mb-6">{t('auth.login.subtitle')}</p>
         {err && <div className="bg-red-900 text-red-200 p-3 rounded mb-4 text-sm">{err}</div>}
+        {requiresEmailVerify && (
+          <div className="bg-yellow-900 border border-yellow-700 text-yellow-100 p-3 rounded mb-4 text-sm">
+            <p className="font-semibold mb-1">
+              {t('auth.login.verifyTitle', 'Verify your email to sign in')}
+            </p>
+            <p className="mb-2">
+              {t('auth.login.verifyBody', 'Your account exists but the email address has not been verified yet. Check your inbox (and spam folder) for the link we sent when you signed up.')}
+            </p>
+            {resendSent ? (
+              <p className="text-xs">
+                {t('auth.login.verifyResent', 'If the address is correct we sent a fresh link.')}
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={resendBusy}
+                className="text-blue-300 hover:text-blue-200 underline disabled:opacity-50"
+              >
+                {resendBusy
+                  ? t('auth.login.verifyResending', 'Resending...')
+                  : t('auth.login.verifyResend', 'Resend verification email')}
+              </button>
+            )}
+          </div>
+        )}
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="block text-sm text-gray-300 mb-1">{t('auth.login.email')}</label>
@@ -99,6 +152,11 @@ export function Login() {
           </button>
         </form>
         <p className="text-sm text-gray-400 mt-4">
+          <Link to="/forgot-password" className="text-blue-400 hover:underline">
+            {t('auth.login.forgot', 'Forgot password?')}
+          </Link>
+        </p>
+        <p className="text-sm text-gray-400 mt-2">
           {t('auth.login.noAccount')}{' '}
           <Link to="/register" className="text-blue-400 hover:underline">{t('auth.login.signUp')}</Link>
         </p>

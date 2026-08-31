@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 /**
- * StatusBar - fixed bottom status indicator (like nonkyc.io).
+ * StatusBar - fixed bottom status indicator.
  *
  * Shows:
  * - WS connection status (green/yellow/red dot + text)

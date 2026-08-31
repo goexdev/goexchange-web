@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import * as api from '../lib/api'
 
@@ -17,7 +17,6 @@ import * as api from '../lib/api'
 // instead of raw JSON.
 export default function VerifyEmail() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<'pending' | 'success' | 'error'>('pending')
   const [error, setError] = useState<string>('')
@@ -58,9 +57,16 @@ export default function VerifyEmail() {
         if (res.token) {
           localStorage.setItem('goexchange_token', res.token)
           setStatus('success')
-          // Brief pause so the user reads "verified" before the
-          // dashboard loads.
-          setTimeout(() => navigate('/user?tab=overview'), 1200)
+          // The verify-email endpoint returns a JWT but not a
+          // user object. The AuthProvider reads the token from
+          // localStorage on mount and calls /me to populate
+          // the user state. Reload the page so the SPA re-mounts
+          // with that flow, otherwise the RequireAuth guard
+          // around /user sees user===null and bounces back to
+          // /login (which is the bug we hit on 2026-08-31).
+          setTimeout(() => {
+            window.location.href = '/user?tab=overview'
+          }, 1200)
         } else {
           setStatus('error')
           setError(res.message || 'verification failed')
@@ -74,7 +80,7 @@ export default function VerifyEmail() {
         // public-safe (no internal SQL state, no token contents).
         setError(err.message || 'verification failed')
       })
-  }, [searchParams, navigate])
+  }, [searchParams])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0f1115] px-4">

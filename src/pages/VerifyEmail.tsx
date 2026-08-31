@@ -50,10 +50,9 @@ export default function VerifyEmail() {
     // "v=2026-08-31-1" tag bumps when the handler changes —
     // helps when the bundle hash stays the same across small
     // edits.
-    // eslint-disable-next-line no-console
     console.info('[verify-email] handler v=2026-08-31-1 token-prefix=' + token.slice(0, 8))
     api.verifyEmail(token)
-      .then((res) => {
+      .then((res: api.VerifyEmailResponse) => {
         if (res.token) {
           localStorage.setItem('goexchange_token', res.token)
           setStatus('success')
@@ -72,8 +71,7 @@ export default function VerifyEmail() {
           setError(res.message || 'verification failed')
         }
       })
-      .catch((err) => {
-        // eslint-disable-next-line no-console
+      .catch((err: Error) => {
         console.error('[verify-email] fetch failed', err)
         setStatus('error')
         // The API error message is intentionally short and

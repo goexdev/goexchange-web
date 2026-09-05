@@ -4,6 +4,7 @@ import * as api from '../lib/api'
 import { AdminLayout } from '../components/AdminLayout'
 import { useToast } from '../components/Toast'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { formatQuoteScaled, formatBaseScaled } from '../lib/scale'
 
 // Admin page: market-making bot fleet management.
 //
@@ -275,14 +276,19 @@ export function AdminMMBot() {
                     </td>
                     <td className="px-3 py-2 font-mono">{b.mid_price}</td>
                     <td className="px-3 py-2 font-mono">{b.spread_bps}</td>
-                    <td className="px-3 py-2 font-mono">{b.quote_balance}</td>
-                    <td className="px-3 py-2 font-mono">{b.base_balance}</td>
+                    <td className="px-3 py-2 font-mono" title={b.quote_balance}>
+                      {formatQuoteScaled(b.quote_balance)}
+                    </td>
+                    <td className="px-3 py-2 font-mono" title={b.base_balance}>
+                      {formatBaseScaled(b.base_balance)}
+                    </td>
                     <td
                       className={`px-3 py-2 font-mono ${
                         Number(b.pnl_quote) < 0 ? 'text-red-400' : 'text-green-400'
                       }`}
+                      title={b.pnl_quote}
                     >
-                      {b.pnl_quote}
+                      {formatQuoteScaled(b.pnl_quote)}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">
                       {b.open_orders?.length || 0}
@@ -329,7 +335,7 @@ export function AdminMMBot() {
           title={t('admin.mmbot.stopTitle', 'Stop market-making bot?')}
           message={t(
             'admin.mmbot.stopMessage',
-            `Stop ${stopTarget.bot_id} (${stopTarget.pair})?\n\nThis cancels all open orders and (if "return inventory" is checked) transfers the bot's quote/base balance back to the treasury.\n\nCurrent state:\n  Quote balance: ${stopTarget.quote_balance}\n  Base balance:  ${stopTarget.base_balance}\n  Open orders:   ${stopTarget.open_orders?.length || 0}\n  PnL (quote):   ${stopTarget.pnl_quote}`
+            `Stop ${stopTarget.bot_id} (${stopTarget.pair})?\n\nThis cancels all open orders and (if "return inventory" is checked) transfers the bot's quote/base balance back to the treasury.\n\nCurrent state:\n  Quote balance: ${formatQuoteScaled(stopTarget.quote_balance)}\n  Base balance:  ${formatBaseScaled(stopTarget.base_balance)}\n  Open orders:   ${stopTarget.open_orders?.length || 0}\n  PnL (quote):   ${formatQuoteScaled(stopTarget.pnl_quote)}`
           )}
           confirmText={t('admin.mmbot.stopConfirm', 'Stop bot')}
           cancelText={t('common.cancel', 'Cancel')}

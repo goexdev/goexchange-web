@@ -77,3 +77,102 @@ describe('Address API', () => {
     expect(result.id).toBe('1')
   })
 })
+
+describe('MMBot API', () => {
+  it('adminStartBot posts to /admin/mmbot/start and unwraps { bot: ... }', async () => {
+    const mockData = {
+      bot: {
+        bot_id: 'BNB_USDT_mm_1',
+        pair: 'BNB_USDT',
+        status: 'RUNNING',
+        mid_price: '50000',
+        spread_bps: 20,
+        base_balance: '2400000000000000',
+        quote_balance: '90030000',
+        open_orders: ['order-1', 'order-2'],
+        pnl_quote: '-14970000',
+        created_at: '2026-09-05T05:00:00Z',
+        started_at: '2026-09-05T05:00:00Z',
+        stopped_at: null,
+        last_error: '',
+      },
+    }
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(mockData))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { adminStartBot } = await import('../api')
+    const result = await adminStartBot({
+      pair: 'BNB_USDT',
+      mid_price: '50000',
+      quote_seed: '100',
+      base_seed: '0.002',
+      spread_bps: 20,
+    })
+    expect(result.bot_id).toBe('BNB_USDT_mm_1')
+    expect(result.status).toBe('RUNNING')
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/admin/mmbot/start'),
+      expect.objectContaining({ method: 'POST' })
+    )
+  })
+
+  it('adminStopBot posts return_inventory=true by default', async () => {
+    const mockData = {
+      bot: {
+        bot_id: 'BNB_USDT_mm_1',
+        pair: 'BNB_USDT',
+        status: 'STOPPED',
+        mid_price: '50000',
+        spread_bps: 20,
+        base_balance: '0',
+        quote_balance: '0',
+        open_orders: [],
+        pnl_quote: '-14970000',
+        created_at: '2026-09-05T05:00:00Z',
+        started_at: '2026-09-05T05:00:00Z',
+        stopped_at: '2026-09-05T05:01:00Z',
+        last_error: '',
+      },
+      returned_quote: '90.03',
+      returned_base: '0.0024',
+    }
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse(mockData))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { adminStopBot } = await import('../api')
+    const result = await adminStopBot('BNB_USDT_mm_1', true)
+    expect(result.bot.status).toBe('STOPPED')
+    expect(result.returned_quote).toBe('90.03')
+    expect(result.returned_base).toBe('0.0024')
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body)
+    expect(body.return_inventory).toBe(true)
+  })
+
+  it('adminListBots unwraps { bots: [...] }', async () => {
+    const mockData = {
+      bots: [
+        {
+          bot_id: 'BNB_USDT_mm_1',
+          pair: 'BNB_USDT',
+          status: 'RUNNING',
+          mid_price: '50000',
+          spread_bps: 20,
+          base_balance: '0',
+          quote_balance: '0',
+          open_orders: [],
+          pnl_quote: '0',
+          created_at: '',
+          started_at: null,
+          stopped_at: null,
+          last_error: '',
+        },
+      ],
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse(mockData)))
+
+    const { adminListBots } = await import('../api')
+    const result = await adminListBots('BNB_USDT', 'RUNNING')
+    expect(result).toHaveLength(1)
+    expect(result[0].bot_id).toBe('BNB_USDT_mm_1')
+  })
+})

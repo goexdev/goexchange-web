@@ -17,6 +17,7 @@ import { AdminDashboardPage } from './pages/AdminDashboard'
 import { AdminKYC } from './pages/AdminKYC'
 import { AdminCurrencies } from './pages/AdminCurrencies'
 import { AdminFeeStats } from './pages/AdminFeeStats'
+import { AdminMMBot } from './pages/AdminMMBot'
 import { Notifications } from './pages/Notifications'
 import { StatusBar } from './components/StatusBar'
 import { User } from './pages/User'
@@ -114,6 +115,14 @@ export default function App() {
             element={
               <RequireAuth>
                 <AdminFeeStats />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/admin/mmbot"
+            element={
+              <RequireAuth>
+                <AdminMMBot />
               </RequireAuth>
             }
           />

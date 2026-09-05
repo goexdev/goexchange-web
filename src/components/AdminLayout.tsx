@@ -7,6 +7,7 @@ const TABS = [
   { path: '/admin/currencies', label: 'Currencies' },
   { path: '/admin/fee-stats', label: 'Fee Stats' },
   { path: '/admin/chains', label: 'Chains' },
+  { path: '/admin/mmbot', label: 'Market Making' },
   { path: '/admin/audit', label: 'Audit Log' },
   { path: '/admin/pairs', label: 'Markets' },
 ]

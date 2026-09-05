@@ -1165,3 +1165,95 @@ export async function removeFavorite(pair: string): Promise<{ status: string; pa
     method: 'DELETE',
   })
 }
+
+// ==================== Market-Making Bots (admin) ====================
+//
+// Wires the public-side `/admin/mmbot/*` handlers
+// (see public/internal/api/mmbot_handlers.go) which in turn
+// proxy to the goexchange-core mm-bot gRPC service.
+//
+// All routes are admin-only (the chi router groups them under
+// `/admin/mmbot`). The frontend always passes the JWT through
+// the standard `Authorization: Bearer <token>` header so the
+// existing adminMiddleware accepts the call.
+
+export type BotStatus =
+  | 'UNSPECIFIED'
+  | 'STOPPED'
+  | 'SEEDING'
+  | 'READY'
+  | 'RUNNING'
+  | 'STOPPING'
+  | 'FAILED'
+
+export interface BotState {
+  bot_id: string
+  pair: string
+  status: BotStatus
+  mid_price: string
+  spread_bps: number
+  base_balance: string
+  quote_balance: string
+  open_orders: string[]
+  pnl_quote: string
+  created_at: string
+  started_at?: string | null
+  stopped_at?: string | null
+  last_error: string
+}
+
+export interface StartBotParams {
+  pair: string
+  mid_price: string
+  quote_seed: string
+  base_seed: string
+  spread_bps?: number
+  treasury_wallet?: string
+  min_quote_per_side?: string
+}
+
+export interface StopBotResult {
+  bot: BotState
+  returned_quote: string
+  returned_base: string
+}
+
+export async function adminStartBot(params: StartBotParams): Promise<BotState> {
+  // Server response shape: { bot: BotState }
+  const res = await request<{ bot: BotState }>('/admin/mmbot/start', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  })
+  return res.bot
+}
+
+export async function adminStopBot(
+  bot_id: string,
+  return_inventory: boolean = true
+): Promise<StopBotResult> {
+  return request<StopBotResult>('/admin/mmbot/stop', {
+    method: 'POST',
+    body: JSON.stringify({ bot_id, return_inventory }),
+  })
+}
+
+export async function adminBotStatus(bot_id: string): Promise<BotState> {
+  // Server response shape: { bot: BotState }
+  const res = await request<{ bot: BotState }>(
+    `/admin/mmbot/status?bot_id=${encodeURIComponent(bot_id)}`
+  )
+  return res.bot
+}
+
+export async function adminListBots(
+  pair?: string,
+  status?: BotStatus | ''
+): Promise<BotState[]> {
+  const params = new URLSearchParams()
+  if (pair) params.set('pair', pair)
+  if (status) params.set('status', status)
+  const q = params.toString()
+  // Server response shape: { bots: BotState[] }
+  const res = await request<{ bots: BotState[] }>(`/admin/mmbot/list${q ? '?' + q : ''}`)
+  return res.bots || []
+}
